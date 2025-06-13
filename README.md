@@ -10,8 +10,8 @@ VYID features a amazing conbination of elements which make it a powerful alterna
 - Very large entropy : the core of VYID's randomness originates from three uint64_t values. Combined, these offer a vast 192-bit state space, ensuring extreme uniqueness. (with strong random seed). The algorithm used for this entropy, `Xoshiro256**` is also great for randomness
 - Cyclic corruption detection : VYID includes a cyclic corruption detection mechanism. Its design ensures that the integrity of an ID can be verified by re-deriving internal hashes and components from the ID string itself, allowing for detection of even single-character alterations. The XOR of the core random values also serves as the seed for our hash algorithm, `XXH3_64bits_withSeed`.
 - Human-Readable & Compact : the use of a specialized string format (see [structure](#structure) for more info) allow for easier human reading. And the use of a very fast `base85` algorithm allow for compactness (only 61 characters) without sacrificing performances
-- Extremely fast generation and verification : the use of algorithms such as `XXH3_64bits_withSeed` and `Xoshiro256**` allow, with a combination of extreme optimisation into the code allow for an astounding 61 nanoseconds of generation time and 15 nanoseconds verification time for verification (on high-end CPU, see [benchmarkings][#benchmarkings] for more info).
-- Bare metal full compatibility : the set of function inside the library allow for an outputting as `char*` or `std::string` depending on your need. You can also specify your own seed or let the library generate one for you. The `static` implementation of the `Xoshiro256**` algorithm allow for extremely fast VYID bulk generation (up to 16.4 millions per second on high-end CPU) and even more for VYID bulk verification.
+- Extremely fast generation and verification : the use of algorithms such as `XXH3_64bits_withSeed` and `Xoshiro256**` allow, with a combination of extreme optimisation into the code allow for an astounding 47 nanoseconds of generation time and 15 nanoseconds verification time for verification (on high-end CPU, see [benchmarkings][#benchmarkings] for more info).
+- Bare metal full compatibility : the set of function inside the library allow for an outputting as `char*` or `std::string` depending on your need. You can also specify your own seed or let the library generate one for you. The `static` implementation of the `Xoshiro256**` algorithm allow for extremely fast VYID bulk generation (up to 21.1 millions per second on high-end CPU) and even more for VYID bulk verification.
 
 ---
 
@@ -51,27 +51,27 @@ For both CPU, the benchmarking script was compiled on Linux 6.14.9-300.fc42.x86_
 
 ### Ryzen 5 7600x
 
-|Task                                                    |Total time (10M iterations)|Average time per call| Calls/second  (Millions) |
-|:-------------------------------------------------------|:-------------------------:|:-------------------:|:------------------------:|
-|**Generation, output as string, automatic random seed** |0.850294 second            |0.0850294 µs         |11.76                     |
-|**Generation, output as char, automatic random seed**   |0.61315 second             |0.061315 µs          |16.31                     |
-|**Generation, output as string, constant seed provided**|0.854977 second            |0.085083 µs          |11.75                     |
-|**Generation, output as char, constant seed provided**  |0.609742 second            |0.0609742 µs         |16.40                     |
-|**Generating VYID as char each time + verification**    |0.798953 second            |0.0798953 µs         |12.52                     |
-|**Verification on the same VYID**                       |0.15412 second             |0.015412 µs          |64.88                     |
+|Task                                                    |Total time (10M iterations)|Average time per call| Calls/second |
+|:-------------------------------------------------------|:-------------------------:|:-------------------:|:------------:|
+|**Generation, output as string, automatic random seed** |0.545858 second            |0.0545858 µs         |18319785      |
+|**Generation, output as char, automatic random seed**   |0.472876 second            |0.0472876 µs         |21147210      |
+|**Generation, output as string, constant seed provided**|0.540625 second            |0.0540625 µs         |18497097      |
+|**Generation, output as char, constant seed provided**  |0.469686 second            |0.0469686 µs         |21290809      |
+|**Generating VYID as char each time + verification**    |0.656432 second            |0.0656432 µs         |15233861      |
+|**Verification on the same VYID**                       |0.148695 second            |0.0148695 µs         |67251964      |
 
 For both task which include verification, the VYID has each time been generated with automatic random seed.
 
 ### Athlon Silver 3050U 2.30 GHz
 
-|Task                                                    |Total time (10M iterations)|Average time per call| Calls/second  (Millions) |
-|:-------------------------------------------------------|:-------------------------:|:-------------------:|:------------------------:|
-|**Generation, output as string, automatic random seed** |2.21133 second             |0.221133 µs          |4.52                      |
-|**Generation, output as char, automatic random seed**   |1.67205 second             |0.167205 µs          |5.98                      |
-|**Generation, output as string, constant seed provided**|2.25088 second             |0.225088 µs          |4.44                      |
-|**Generation, output as char, constant seed provided**  |1.68907 second             |0.168907 µs          |5.92                      |
-|**Generating VYID as char each time + verification**    |2.0865 second              |0.20865 µs           |4.79                      |
-|**Verification on the same VYID**                       |0.482152 second            |0.0482152 µs         |20.74                     |
+|Task                                                    |Total time (10M iterations)|Average time per call| Calls/second |
+|:-------------------------------------------------------|:-------------------------:|:-------------------:|:------------:|
+|**Generation, output as string, automatic random seed** |1.29653 second             |0.129653 µs          |7712920       |
+|**Generation, output as char, automatic random seed**   |1.13043 second             |0.113043 µs          |8846187       |
+|**Generation, output as string, constant seed provided**|1.2988 second              |0.12988 µs           |7699391       |
+|**Generation, output as char, constant seed provided**  |1.12941 second             |0.138773 µs          |8854161       |
+|**Generating VYID as char each time + verification**    |1.38773 second             |0.138773 µs          |7206035       |
+|**Verification on the same VYID**                       |0.321481 second            |0.0321481 µs         |31106012      |
 
 For both task which include verification, the VYID has each time been generated with automatic random seed.
 

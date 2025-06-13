@@ -2,75 +2,83 @@
 #include <cstring>
 #include <array>
 namespace base85 {
-    constexpr char Z85_CHARS[]=
+    constexpr char Z85_CHARS[] =
         "0123456789"
         "abcdefghijklmnopqrstuvwxyz"
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         ".~:+=^!/*?&<>()_|{}@%$#";
-    constexpr int8_t get_decode_val(char c) {
-        for (int i=0;i<85;++i) {
-            if (Z85_CHARS[i]==c) {
-                return i;
-            }
-        }
+
+    constexpr uint32_t POW85[5] = {
+        52200625, // 85^4
+        614125,   // 85^3
+        7225,     // 85^2
+        85,       // 85^1
+        1         // 85^0
+    };
+
+    // Générée statiquement pour accélérer les décodages
+    constexpr int8_t make_decode_map(unsigned char c) {
+        for (int i = 0; i < 85; ++i)
+            if (Z85_CHARS[i] == c)
+                return static_cast<int8_t>(i);
         return -1;
     }
-    template<size_t... Is>
-    constexpr std::array<int8_t,256> make_decode_map_impl(std::index_sequence<Is...>) {
-        return {{(int8_t)get_decode_val(static_cast<char>(Is))...}};
+
+    constexpr int8_t build_map_byte(unsigned char c) {
+        return make_decode_map(c);
     }
-    constexpr std::array<int8_t,256> Z85_DECODE_MAP_ARRAY=make_decode_map_impl(std::make_index_sequence<256>{});
-    inline void uint32_to_b85(uint32_t value,char* out) {
-        constexpr uint32_t d1=52200625;
-        constexpr uint32_t d2=614125;
-        constexpr uint32_t d3=7225;
-        constexpr uint32_t d4=85;
-        uint32_t q1=value/d1;
-        value-=q1*d1;
-        uint32_t q2=value/d2;
-        value-=q2*d2;
-        uint32_t q3=value/d3;
-        value-=q3*d3;
-        uint32_t q4=value/d4;
-        value-=q4*d4;
-        out[0]=Z85_CHARS[q1];
-        out[1]=Z85_CHARS[q2];
-        out[2]=Z85_CHARS[q3];
-        out[3]=Z85_CHARS[q4];
-        out[4]=Z85_CHARS[value];
-        out[5]='\0';
-    }
-    inline void uint64_to_b85(uint64_t value,char* out) {
-        uint32_to_b85(static_cast<uint32_t>(value>>32),out);
-        uint32_to_b85(static_cast<uint32_t>(value & 0xFFFFFFFF),out+5);
-        out[10]='\0';
-    }
-    inline int b85_to_uint32_internal(const char* in,uint32_t& value) {
-        constexpr uint32_t p1=85;
-        constexpr uint32_t p2=85*85;
-        constexpr uint32_t p3=85*85*85;
-        constexpr uint32_t p4=85*85*85*85;
-        uint32_t v0=Z85_DECODE_MAP_ARRAY[static_cast<unsigned char>(in[0])];
-        uint32_t v1=Z85_DECODE_MAP_ARRAY[static_cast<unsigned char>(in[1])];
-        uint32_t v2=Z85_DECODE_MAP_ARRAY[static_cast<unsigned char>(in[2])];
-        uint32_t v3=Z85_DECODE_MAP_ARRAY[static_cast<unsigned char>(in[3])];
-        uint32_t v4=Z85_DECODE_MAP_ARRAY[static_cast<unsigned char>(in[4])];
-        if (v0==-1 || v1==-1 || v2==-1 || v3==-1 || v4==-1) {
-            value=0;
-            return 1;
+
+    // Génère une table fixe au lieu de faire la recherche à chaque appel
+    constexpr auto build_decode_table() {
+        std::array<int8_t, 256> arr = {};
+        for (size_t i = 0; i < 256; ++i) {
+            arr[i] = build_map_byte(static_cast<unsigned char>(i));
         }
-        value=v0*p4+v1*p3+v2*p2+v3*p1+v4;
+        return arr;
+    }
+
+    constexpr auto Z85_DECODE_MAP_ARRAY = build_decode_table();
+
+    inline void uint32_to_b85(uint32_t value, char* out) {
+        for (int i = 0; i < 5; ++i) {
+            uint32_t div = POW85[i];
+            uint32_t q = value / div;
+            out[i] = Z85_CHARS[q];
+            value -= q * div;
+        }
+        out[5] = '\0';
+    }
+
+    inline void uint64_to_b85(uint64_t value, char* out) {
+        uint32_to_b85(static_cast<uint32_t>(value >> 32), out);
+        uint32_to_b85(static_cast<uint32_t>(value), out + 5);
+        out[10] = '\0';
+    }
+
+    inline int b85_to_uint32_internal(const char* in, uint32_t& value) {
+        uint32_t result = 0;
+        for (int i = 0; i < 5; ++i) {
+            int8_t v = Z85_DECODE_MAP_ARRAY[static_cast<unsigned char>(in[i])];
+            if (v < 0) {
+                value = 0;
+                return 1;
+            }
+            result += static_cast<uint32_t>(v) * POW85[i];
+        }
+        value = result;
         return 0;
     }
-    inline int b85_to_uint32(const char* in,uint32_t& out) {
-        return b85_to_uint32_internal(in,out);
+
+    inline int b85_to_uint32(const char* in, uint32_t& out) {
+        return b85_to_uint32_internal(in, out);
     }
-    inline int b85_to_uint64(const char* in,uint64_t& out) {
-        uint32_t high_part,low_part;
-        int error=0;
-        error|=b85_to_uint32_internal(in,high_part);
-        error|=b85_to_uint32_internal(in+5,low_part);
-        out=(static_cast<uint64_t>(high_part)<<32) | low_part;
+
+    inline int b85_to_uint64(const char* in, uint64_t& out) {
+        uint32_t high, low;
+        int error = 0;
+        error |= b85_to_uint32_internal(in, high);
+        error |= b85_to_uint32_internal(in + 5, low);
+        out = (static_cast<uint64_t>(high) << 32) | low;
         return error;
     }
 }

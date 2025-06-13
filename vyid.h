@@ -29,48 +29,38 @@ namespace vyid {
     //* Return the string containing the VYID
     #ifndef VYID_NO_OS_DEPENDENCIES
     std::string generate_vyid_string_raw(XoshiroCpp::Xoshiro256StarStar& gen,random_values& rand) {
-        std::uniform_int_distribution<uint64_t> dist(0,0xFFFFFFFFFFFFFFFFULL);
-        rand.rand1=dist(gen);
-        rand.rand2=dist(gen);
-        rand.rand3=dist(gen);
+        rand.rand1=gen();
+        rand.rand2=gen();
+        rand.rand3=gen();
         uint64_t seed=rand.rand1^rand.rand2^rand.rand3;
-        char sign1[16];
-        char sign2[16];
-        char sign3[16];
-        memcpy(sign1,&rand.rand2,8);
-        memcpy(sign1+8,&rand.rand3,8);
-        uint64_t sign1h=XXH3_64bits_withSeed(sign1,sizeof(sign1),seed);
-        memcpy(sign2,&rand.rand1,8);
-        memcpy(sign2+8,&rand.rand3,8);
-        uint64_t sign2h=XXH3_64bits_withSeed(sign2,sizeof(sign2),seed);
-        memcpy(sign3,&rand.rand1,8);
-        memcpy(sign3+8,&rand.rand2,8);
-        uint64_t sign3h=XXH3_64bits_withSeed(sign3,sizeof(sign3),seed);
+        struct pair64{uint64_t a,b;};
+        pair64 tempstruct=pair64{rand.rand2,rand.rand3};
+        uint64_t sign1h=XXH3_64bits_withSeed(&tempstruct,sizeof(tempstruct),seed);
+        tempstruct=pair64{rand.rand1,rand.rand3};
+        uint64_t sign2h=XXH3_64bits_withSeed(&tempstruct,sizeof(tempstruct),seed);
+        tempstruct=pair64{rand.rand1,rand.rand2};
+        uint64_t sign3h=XXH3_64bits_withSeed(&tempstruct,sizeof(tempstruct),seed);
         uint64_t lenc1=rand.rand1^sign1h;
         uint64_t lenc2=rand.rand2^sign2h;
         uint64_t lenc3=rand.rand3^sign3h;
         uint32_t enc1=lenc1>>32;
         uint32_t enc2=lenc2>>32;
         uint32_t enc3=lenc3>>32;
-        char total[12];
-        memcpy(total,&enc1,4);
-        memcpy(total+4,&enc2,4);
-        memcpy(total+8,&enc3,4);
-        auto sumtotal=XXH3_64bits_withSeed(total,sizeof(total),seed);
+        struct triple64{uint64_t a,b,c;};
+        triple64 tempst={enc1,enc2,enc3};
+        auto sumtotal=XXH3_64bits_withSeed(&tempst,sizeof(tempst),seed);
         uint32_t trunctotal=sumtotal>>32;
-        char grph[4];
-        memcpy(grph,&trunctotal,4);
-        auto sumgrp=XXH3_64bits_withSeed(grph,sizeof(grph),seed);
+        auto sumgrp=XXH3_64bits_withSeed(&trunctotal,sizeof(trunctotal),seed);
         uint32_t truncgrp=sumgrp>>32;
-        char output[70];
-        char grp[6];
-        char hash[6];
-        char enchar1[6];
-        char enchar2[6];
-        char enchar3[6];
-        char rand1[11];
-        char rand2[11];
-        char rand3[11];
+        alignas(128) char output[70];
+        alignas(8) char grp[6];
+        alignas(8) char hash[6];
+        alignas(8) char enchar1[6];
+        alignas(8) char enchar2[6];
+        alignas(8) char enchar3[6];
+        alignas(16) char rand1[11];
+        alignas(16) char rand2[11];
+        alignas(16) char rand3[11];
         base85::uint32_to_b85(truncgrp,grp);
         base85::uint32_to_b85(enc1,enchar1);
         base85::uint32_to_b85(enc2,enchar2);
@@ -103,7 +93,7 @@ namespace vyid {
         offset+=5;
         output[offset++]=']';
         output[offset]='\0';
-        return std::string(output);
+        return std::string(output,output+62);
     }
     #endif
     //* Function to generate a VYID, made for single use
@@ -113,53 +103,43 @@ namespace vyid {
     //* output_size : the size of the output buffer
     //* Return a int : 0 if sucess, 1 if failure
     int generate_vyid_char_raw(XoshiroCpp::Xoshiro256StarStar& gen,random_values& rand,char* output,size_t output_size) {
-        if (output_size<62) {
-            if (output_size>0) {
+        if (__builtin_expect(output_size<VYID_MIN_BUFFER_SIZE,0)) {
+            if (__builtin_expect(output_size>0,0)) {
                 output[0]='\0';
             }
             return 1;
         }
-        std::uniform_int_distribution<uint64_t> dist(0,0xFFFFFFFFFFFFFFFFULL);
-        rand.rand1=dist(gen);
-        rand.rand2=dist(gen);
-        rand.rand3=dist(gen);
+        rand.rand1=gen();
+        rand.rand2=gen();
+        rand.rand3=gen();
         uint64_t seed=rand.rand1^rand.rand2^rand.rand3;
-        char sign1[16];
-        char sign2[16];
-        char sign3[16];
-        memcpy(sign1,&rand.rand2,8);
-        memcpy(sign1+8,&rand.rand3,8);
-        uint64_t sign1h=XXH3_64bits_withSeed(sign1,sizeof(sign1),seed);
-        memcpy(sign2,&rand.rand1,8);
-        memcpy(sign2+8,&rand.rand3,8);
-        uint64_t sign2h=XXH3_64bits_withSeed(sign2,sizeof(sign2),seed);
-        memcpy(sign3,&rand.rand1,8);
-        memcpy(sign3+8,&rand.rand2,8);
-        uint64_t sign3h=XXH3_64bits_withSeed(sign3,sizeof(sign3),seed);
+        struct pair64{uint64_t a,b;};
+        pair64 tempstruct=pair64{rand.rand2,rand.rand3};
+        uint64_t sign1h=XXH3_64bits_withSeed(&tempstruct,sizeof(tempstruct),seed);
+        tempstruct=pair64{rand.rand1,rand.rand3};
+        uint64_t sign2h=XXH3_64bits_withSeed(&tempstruct,sizeof(tempstruct),seed);
+        tempstruct=pair64{rand.rand1,rand.rand2};
+        uint64_t sign3h=XXH3_64bits_withSeed(&tempstruct,sizeof(tempstruct),seed);
         uint64_t lenc1=rand.rand1^sign1h;
         uint64_t lenc2=rand.rand2^sign2h;
         uint64_t lenc3=rand.rand3^sign3h;
         uint32_t enc1=lenc1>>32;
         uint32_t enc2=lenc2>>32;
         uint32_t enc3=lenc3>>32;
-        char total[12];
-        memcpy(total,&enc1,4);
-        memcpy(total+4,&enc2,4);
-        memcpy(total+8,&enc3,4);
-        auto sumtotal=XXH3_64bits_withSeed(total,sizeof(total),seed);
+        struct triple64{uint64_t a,b,c;};
+        triple64 tempst={enc1,enc2,enc3};
+        auto sumtotal=XXH3_64bits_withSeed(&tempst,sizeof(tempst),seed);
         uint32_t trunctotal=sumtotal>>32;
-        char grph[4];
-        memcpy(grph,&trunctotal,4);
-        auto sumgrp=XXH3_64bits_withSeed(grph,sizeof(grph),seed);
+        auto sumgrp=XXH3_64bits_withSeed(&trunctotal,sizeof(trunctotal),seed);
         uint32_t truncgrp=sumgrp>>32;
-        char grp[6];
-        char hash[6];
-        char enchar1[6];
-        char enchar2[6];
-        char enchar3[6];
-        char rand1[11];
-        char rand2[11];
-        char rand3[11];
+        alignas(8) char grp[6];
+        alignas(8) char hash[6];
+        alignas(8) char enchar1[6];
+        alignas(8) char enchar2[6];
+        alignas(8) char enchar3[6];
+        alignas(16) char rand1[11];
+        alignas(16) char rand2[11];
+        alignas(16) char rand3[11];
         base85::uint32_to_b85(truncgrp,grp);
         base85::uint32_to_b85(enc1,enchar1);
         base85::uint32_to_b85(enc2,enchar2);
@@ -254,23 +234,23 @@ namespace vyid {
     //* vyid_size : the size of the char that contain the VYID
     //* Return a boolean : true if the VYID pass all tests, false if one of the test failed
     bool check_vyid(const char* vyid,size_t vyid_size) {
-        if (vyid==nullptr) {
+        if (__builtin_expect(vyid==nullptr,0)) {
             return false;
         }
-        if (vyid_size<VYID_MIN_BUFFER_SIZE) {
+        if (__builtin_expect(vyid_size<VYID_MIN_BUFFER_SIZE,0)) {
             return false;
         }
-        if (vyid[0]!='[' || vyid[VYID_MIN_BUFFER_SIZE-2]!=']' || vyid[6]!='-' || vyid[22]!='-' || vyid[38]!='-' || vyid[54]!='-') {
+        if (__builtin_expect(vyid[0]!='[' || vyid[VYID_MIN_BUFFER_SIZE-2]!=']' || vyid[6]!='-' || vyid[22]!='-' || vyid[38]!='-' || vyid[54]!='-',0)) {
             return false;
         }
-        char grp[6];
-        char hash[6];
-        char enchar1[6];
-        char enchar2[6];
-        char enchar3[6];
-        char rand1[11];
-        char rand2[11];
-        char rand3[11];
+        alignas(8) char grp[6];
+        alignas(8) char hash[6];
+        alignas(8) char enchar1[6];
+        alignas(8) char enchar2[6];
+        alignas(8) char enchar3[6];
+        alignas(16) char rand1[11];
+        alignas(16) char rand2[11];
+        alignas(16) char rand3[11];
         std::memcpy(grp,vyid+1,5);
         grp[5]='\0';
         std::memcpy(enchar1,vyid+7,5);
@@ -295,53 +275,46 @@ namespace vyid {
         uint64_t irand1;
         uint64_t irand2;
         uint64_t irand3;
-        if (base85::b85_to_uint32(grp,igrp)!=0) return false;
-        if (base85::b85_to_uint32(hash,ihash)!=0) return false;
-        if (base85::b85_to_uint32(enchar1,encint1)!=0) return false;
-        if (base85::b85_to_uint32(enchar2,encint2)!=0) return false;
-        if (base85::b85_to_uint32(enchar3,encint3)!=0) return false;
-        if (base85::b85_to_uint64(rand1,irand1)!=0) return false;
-        if (base85::b85_to_uint64(rand2,irand2)!=0) return false;
-        if (base85::b85_to_uint64(rand3,irand3)!=0) return false;
+        if (__builtin_expect(base85::b85_to_uint32(grp,igrp)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint32(hash,ihash)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint32(enchar1,encint1)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint32(enchar2,encint2)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint32(enchar3,encint3)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint64(rand1,irand1)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint64(rand2,irand2)!=0,0)) return false;
+        if (__builtin_expect(base85::b85_to_uint64(rand3,irand3)!=0,0)) return false;
         uint64_t seed=irand1^irand2^irand3;
-        char sign1[16];
-        char sign2[16];
-        char sign3[16];
-        memcpy(sign1,&irand2,8);
-        memcpy(sign1+8,&irand3,8);
-        uint64_t sign1h=XXH3_64bits_withSeed(sign1,sizeof(sign1),seed);
-        memcpy(sign2,&irand1,8);
-        memcpy(sign2+8,&irand3,8);
-        uint64_t sign2h=XXH3_64bits_withSeed(sign2,sizeof(sign2),seed);
-        memcpy(sign3,&irand1,8);
-        memcpy(sign3+8,&irand2,8);
-        uint64_t sign3h=XXH3_64bits_withSeed(sign3,sizeof(sign3),seed);
+        struct pair64 {uint64_t a,b;};
+        pair64 p1{irand2,irand3};
+        uint64_t sign1h=XXH3_64bits_withSeed(&p1,sizeof(p1),seed);
+        pair64 p2{irand1,irand3};
+        uint64_t sign2h=XXH3_64bits_withSeed(&p2,sizeof(p2),seed);
+        pair64 p3{irand1,irand2};
+        uint64_t sign3h=XXH3_64bits_withSeed(&p3,sizeof(p3),seed);
         uint64_t enc1=(irand1^sign1h)>>32;
         uint64_t enc2=(irand2^sign2h)>>32;
         uint64_t enc3=(irand3^sign3h)>>32;
-        if (encint1!=enc1) {
+        if (__builtin_expect(encint1!=enc1,0)) {
             return false;
         }
-        if (encint2!=enc2) {
+        if (__builtin_expect(encint2!=enc2,0)) {
             return false;
         }
-        if (encint3!=enc3) {
+        if (__builtin_expect(encint3!=enc3,0)) {
             return false;
         }
-        char total[12];
-        memcpy(total,&enc1,4);
-        memcpy(total+4,&enc2,4);
-        memcpy(total+8,&enc3,4);
-        auto sumtotal=XXH3_64bits_withSeed(total,sizeof(total),seed);
+        struct triple64 {uint64_t a,b,c;};
+        triple64 tempst={enc1,enc2,enc3};
+        auto sumtotal=XXH3_64bits_withSeed(&tempst,sizeof(tempst),seed);
         uint32_t trunctotal=sumtotal>>32;
-        if (trunctotal!=ihash) {
+        if (__builtin_expect(trunctotal!=ihash,0)) {
             return false;
         }
-        char grph[4];
-        memcpy(grph,&trunctotal,4);
-        auto sumgrp=XXH3_64bits_withSeed(grph,sizeof(grph),seed);
+        alignas(4) char trunctotal_bytes[4];
+        std::memcpy(trunctotal_bytes,&trunctotal,4);
+        auto sumgrp=XXH3_64bits_withSeed(trunctotal_bytes,sizeof(trunctotal_bytes),seed);
         uint32_t truncgrp=sumgrp>>32;
-        if (truncgrp!=igrp) {
+        if (__builtin_expect(truncgrp!=igrp,0)) {
             return false;
         }
         return true;
