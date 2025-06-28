@@ -139,8 +139,6 @@ VYIDs per second: 3594919
 
 ## Integration
 
-## Integration
-
 Usage of the VYID library is extremely simple :
 1. Place all header files (`vyid.h`, `base85.h`, `xxhash.h`, `XoshiroCpp.hpp`, `base512.h`, `blake3_impl.h`, `blake3.h`, `chacha20.h`, `trie.h`, `utf8.h` in a directory accessible to your compiler's include path.
 2. Compile `xxhash.c` into an object file (e.g., `xxhash.o`).
